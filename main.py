@@ -1,397 +1,7 @@
 from PyQt6 import QtCore, QtGui, QtWidgets
-from PyQt6.QtWidgets import QAbstractItemView,QComboBox, QLabel, QLineEdit, QMessageBox, QDialog, QVBoxLayout, QLabel, QLineEdit, QPushButton, QMessageBox, QDateEdit
+from PyQt6.QtWidgets import QAbstractItemView, QLabel, QLineEdit, QMessageBox
 from PyQt6.QtGui import QPixmap
-import psycopg2
-
-class AddCustomerDialog(QDialog):
-    def __init__(self, connection_params):
-        super().__init__()
-
-        self.setWindowTitle("Add Customer")
-        layout = QVBoxLayout()
-
-        self.customer_name_label = QLabel("Customer Name:")
-        self.customer_name_edit = QLineEdit()
-
-        self.contact_number_label = QLabel("Contact Number:")
-        self.contact_number_edit = QLineEdit()
-
-        self.house_number_label = QLabel("House Number:")
-        self.house_number_edit = QLineEdit()
-
-        self.street_label = QLabel("Street:")
-        self.street_edit = QLineEdit()
-
-        self.barangay_label = QLabel("Barangay:")
-        self.barangay_edit = QLineEdit()
-
-        self.city_label = QLabel("City:")
-        self.city_edit = QLineEdit()
-
-        self.add_button = QPushButton("Add Customer")
-        self.add_button.clicked.connect(self.addCustomer)
-
-        layout.addWidget(self.customer_name_label)
-        layout.addWidget(self.customer_name_edit)
-        layout.addWidget(self.contact_number_label)
-        layout.addWidget(self.contact_number_edit)
-        layout.addWidget(self.house_number_label)
-        layout.addWidget(self.house_number_edit)
-        layout.addWidget(self.street_label)
-        layout.addWidget(self.street_edit)
-        layout.addWidget(self.barangay_label)
-        layout.addWidget(self.barangay_edit)
-        layout.addWidget(self.city_label)
-        layout.addWidget(self.city_edit)
-        layout.addWidget(self.add_button)
-
-        self.setLayout(layout)
-        
-        self.connection_params = connection_params
-
-    def addCustomer(self):
-        # Retrieve data from the input fields
-        customer_name = self.customer_name_edit.text()
-        contact_number = self.contact_number_edit.text()
-        house_number = self.house_number_edit.text()
-        street = self.street_edit.text()
-        barangay = self.barangay_edit.text()
-        city = self.city_edit.text()
-
-        try:
-            connection = psycopg2.connect(**self.connection_params)
-            with connection.cursor() as cursor:
-                query = "INSERT INTO customer (CustomerName, ContactNumber, HouseNumber, Street, Barangay, City) VALUES (%s, %s, %s, %s, %s, %s)"
-                cursor.execute(query, (customer_name, contact_number, house_number, street, barangay, city))
-                connection.commit()
-            QMessageBox.information(None, "Success", "Customer added successfully!")
-        except (Exception, psycopg2.Error) as error:
-            QMessageBox.critical(None, "Error", f"Failed to add customer: {error}")
-        finally:
-            if connection:
-                connection.close()
-
-class AddReservationDialog(QDialog):
-    def __init__(self, connection_params):
-        super().__init__()
-
-        self.setWindowTitle("Add Reservation")
-        self.connection_params = connection_params
-        self.connection = None  # Initialize the connection attribute
-
-        layout = QVBoxLayout()
-
-        self.reservation_date_label = QLabel("Reservation Date:")
-        self.reservation_date_edit = QDateEdit()
-
-        self.return_date_label = QLabel("Return Date:")
-        self.return_date_edit = QDateEdit()
-
-        self.customer_id_label = QLabel("Customer ID:")
-        self.customer_id_edit = QComboBox()
-
-        self.videoke_id_label = QLabel("Videoke ID:")
-        self.videoke_id_edit = QComboBox()
-
-        self.add_button = QPushButton("Add Reservation")
-        self.add_button.clicked.connect(self.addReservation)
-
-        layout.addWidget(self.reservation_date_label)
-        layout.addWidget(self.reservation_date_edit)
-        layout.addWidget(self.return_date_label)
-        layout.addWidget(self.return_date_edit)
-        layout.addWidget(self.customer_id_label)
-        layout.addWidget(self.customer_id_edit)
-        layout.addWidget(self.videoke_id_label)
-        layout.addWidget(self.videoke_id_edit)
-        layout.addWidget(self.add_button)
-
-        self.setLayout(layout)
-
-        self.load_existing_data()
-
-    def load_existing_data(self):
-        try:
-            if self.connection is None:
-                self.connection = psycopg2.connect(**self.connection_params)
-            with self.connection.cursor() as cursor:
-                cursor.execute("SELECT CustomerID FROM customer")
-                customers = cursor.fetchall()
-                self.customer_id_edit.addItems([str(customer[0]) for customer in customers])
-
-                cursor.execute("SELECT VideokeID FROM videoke WHERE status = 'Available'")
-                videoke_units = cursor.fetchall()
-                self.videoke_id_edit.addItems([str(videoke[0]) for videoke in videoke_units])
-        except (Exception, psycopg2.Error) as error:
-            QMessageBox.critical(None, "Error", f"Failed to load existing data: {error}")
-
-    def addReservation(self):
-        reservation_date = self.reservation_date_edit.text()
-        return_date = self.return_date_edit.text()
-        customer_id = self.customer_id_edit.currentText()
-        videoke_id = self.videoke_id_edit.currentText()
-        try:
-            if self.connection is None:
-                self.connection = psycopg2.connect(**self.connection_params)
-            with self.connection.cursor() as cursor:
-                query = "INSERT INTO reservation (ReservationDate, ReturnDate, CustomerID, VideokeID) VALUES (%s, %s, %s, %s)"
-                cursor.execute(query, (reservation_date, return_date, customer_id, videoke_id))
-                self.connection.commit()
-            QMessageBox.information(None, "Success", "Reservation added successfully!")
-        except (Exception, psycopg2.Error) as error:
-            QMessageBox.critical(None, "Error", f"Failed to add reservation: {error}")
-        finally:
-            if self.connection:
-                self.connection.close()
-        
-class AddVideokeDialog(QDialog):
-    def __init__(self, connection_params):
-        super().__init__()
-
-        self.setWindowTitle("Add Videoke")
-        layout = QVBoxLayout()
-
-        self.model_label = QLabel("Model:")
-        self.model_edit = QLineEdit()
-
-        self.condition_label = QLabel("Condition:")
-        self.condition_edit = QLineEdit()
-
-        self.status_label = QLabel("Status:")
-        self.status_edit = QLineEdit()
-
-        self.add_button = QPushButton("Add Videoke")
-        self.add_button.clicked.connect(self.addVideoke)
-
-        layout.addWidget(self.model_label)
-        layout.addWidget(self.model_edit)
-        layout.addWidget(self.condition_label)
-        layout.addWidget(self.condition_edit)
-        layout.addWidget(self.status_label)
-        layout.addWidget(self.status_edit)
-        layout.addWidget(self.add_button)
-
-        self.setLayout(layout)
-        
-        self.connection_params = connection_params
-
-    def addVideoke(self):
-        # Retrieve data from the input fields
-        model = self.model_edit.text()
-        condition = self.condition_edit.text()
-        status = self.status_edit.text()
-        try:
-            connection = psycopg2.connect(**self.connection_params) 
-            with connection.cursor() as cursor:
-                query = "INSERT INTO Videoke (Model, Condition, Status) VALUES (%s, %s, %s)"
-                cursor.execute(query, (model, condition, status))
-                connection.commit()
-            QMessageBox.information(None, "Success", "Videoke added successfully!")
-        except (Exception, psycopg2.Error) as error:
-            QMessageBox.critical(None, "Error", f"Failed to add videoke: {error}")
-        finally:
-            if connection:
-                connection.close()
-
-class AddDeliveryDialog(QDialog):
-    def __init__(self, connection_params):
-        super().__init__()
-
-        self.setWindowTitle("Add Delivery")
-        layout = QVBoxLayout()
-
-        self.reservation_id_label = QLabel("Reservation ID:")
-        self.reservation_id_edit = QComboBox()
-
-        self.delivery_address_label = QLabel("Delivery Address:")
-        self.delivery_address_edit = QLineEdit()
-
-        self.delivery_personnel_label = QLabel("Delivery Personnel:")
-        self.delivery_personnel_edit = QLineEdit()
-
-        self.delivery_status_label = QLabel("Delivery Status:")
-        self.delivery_status_edit = QLineEdit()
-
-        self.add_button = QPushButton("Add Delivery")
-        self.add_button.clicked.connect(self.addDelivery)
-
-        layout.addWidget(self.reservation_id_label)
-        layout.addWidget(self.reservation_id_edit)
-        layout.addWidget(self.delivery_address_label)
-        layout.addWidget(self.delivery_address_edit)
-        layout.addWidget(self.delivery_personnel_label)
-        layout.addWidget(self.delivery_personnel_edit)
-        layout.addWidget(self.delivery_status_label)
-        layout.addWidget(self.delivery_status_edit)
-        layout.addWidget(self.add_button)
-
-        self.setLayout(layout)
-
-        self.connection_params = connection_params
-        self.load_existing_data()
-
-    def load_existing_data(self):
-        try:
-            connection = psycopg2.connect(**self.connection_params)
-            with connection.cursor() as cursor:
-                cursor.execute("SELECT ReservationID FROM reservation")
-                reservations = cursor.fetchall()
-                self.reservation_id_edit.addItems([str(reservation[0]) for reservation in reservations])
-        except (Exception, psycopg2.Error) as error:
-            QMessageBox.critical(None, "Error", f"Failed to load existing data: {error}")
-        finally:
-            if connection:
-                connection.close()
-
-    def addDelivery(self):
-        # Retrieve data from the input fields
-        reservation_id = self.reservation_id_edit.currentText()
-        delivery_address = self.delivery_address_edit.text()
-        delivery_personnel = self.delivery_personnel_edit.text()
-        delivery_status = self.delivery_status_edit.text()
-
-        try:
-            connection = psycopg2.connect(**self.connection_params)
-            with connection.cursor() as cursor:
-                query = "INSERT INTO Delivery (ReservationID, DeliveryAddress, DeliveryPersonnel, DeliveryStatus) VALUES (%s, %s, %s, %s)"
-                cursor.execute(query, (reservation_id, delivery_address, delivery_personnel, delivery_status))
-                connection.commit()
-            QMessageBox.information(None, "Success", "Delivery added successfully!")
-        except (Exception, psycopg2.Error) as error:
-            QMessageBox.critical(None, "Error", f"Failed to add delivery: {error}")
-        finally:
-            if connection:
-                connection.close()
-
-class AddMaintenanceDialog(QDialog):
-    def __init__(self, connection_params):
-        super().__init__()
-
-        self.setWindowTitle("Add Maintenance")
-        layout = QVBoxLayout()
-
-        self.videoke_id_label = QLabel("Videoke ID:")
-        self.videoke_id_edit = QComboBox() 
-
-        self.issues_label = QLabel("Issues:")
-        self.issues_edit = QLineEdit()
-
-        self.date_reported_label = QLabel("Date Reported:")
-        self.date_reported_edit = QDateEdit()
-
-        self.date_maintained_label = QLabel("Date Maintained:")
-        self.date_maintained_edit = QDateEdit()
-
-        self.notes_label = QLabel("Notes:")
-        self.notes_edit = QLineEdit()
-
-        self.add_button = QPushButton("Add Maintenance")
-        self.add_button.clicked.connect(self.addMaintenance)
-
-        layout.addWidget(self.videoke_id_label)
-        layout.addWidget(self.videoke_id_edit)
-        layout.addWidget(self.issues_label)
-        layout.addWidget(self.issues_edit)
-        layout.addWidget(self.date_reported_label)
-        layout.addWidget(self.date_reported_edit)
-        layout.addWidget(self.date_maintained_label)
-        layout.addWidget(self.date_maintained_edit)
-        layout.addWidget(self.notes_label)
-        layout.addWidget(self.notes_edit)
-        layout.addWidget(self.add_button)
-
-        self.setLayout(layout)
-
-        self.connection_params = connection_params
-        self.load_existing_videoke_ids()
-
-    def load_existing_videoke_ids(self):
-        try:
-            connection = psycopg2.connect(**self.connection_params)
-            with connection.cursor() as cursor:
-                cursor.execute("SELECT VideokeID FROM Videoke")
-                videoke_ids = cursor.fetchall()
-                self.videoke_id_edit.addItems([str(videoke_id[0]) for videoke_id in videoke_ids])
-        except (Exception, psycopg2.Error) as error:
-            QMessageBox.critical(None, "Error", f"Failed to load existing Videoke IDs: {error}")
-        finally:
-            if connection:
-                connection.close()
-
-    def addMaintenance(self):
-        # Retrieve data from the input fields
-        videoke_id = self.videoke_id_edit.currentText()
-        issues = self.issues_edit.text()
-        date_reported = self.date_reported_edit.date().toString("yyyy-MM-dd")
-        date_maintained = self.date_maintained_edit.date().toString("yyyy-MM-dd")
-        notes = self.notes_edit.text()
-
-        try:
-            connection = psycopg2.connect(**self.connection_params)
-            with connection.cursor() as cursor:
-                query = "INSERT INTO Maintenance (VideokeID, Issues, DateReported, DateMaintained, Notes) VALUES (%s, %s, %s, %s, %s)"
-                cursor.execute(query, (videoke_id, issues, date_reported, date_maintained, notes))
-                connection.commit()
-            QMessageBox.information(None, "Success", "Maintenance added successfully!")
-        except (Exception, psycopg2.Error) as error:
-            QMessageBox.critical(None, "Error", f"Failed to add maintenance: {error}")
-        finally:
-            if connection:
-                connection.close()
-
-
-class AddAccountDialog(QDialog):
-    def __init__(self, connection_params):
-        super().__init__()
-
-        self.setWindowTitle("Add Accoount")
-        layout = QVBoxLayout()
-
-        self.user_label = QLabel("Username:")
-        self.user_edit = QLineEdit()
-
-        self.password_label = QLabel("Passowrd:")
-        self.password_edit = QLineEdit()
-
-        self.authorization_label = QLabel("Authorization Level:")
-        self.authorization_edit = QLineEdit()
-
-        self.add_button = QPushButton("Add Account")
-        self.add_button.clicked.connect(self.addAccount)
-
-        layout.addWidget(self.user_label)
-        layout.addWidget(self.user_edit)
-        layout.addWidget(self.password_label)
-        layout.addWidget(self.password_edit)
-        layout.addWidget(self.authorization_label)
-        layout.addWidget(self.authorization_edit)
-        layout.addWidget(self.add_button)
-
-        self.setLayout(layout)
-        
-        self.connection_params = connection_params
-
-    def addAccount(self):
-        # Retrieve data from the input fields
-        username = self.user_edit.text()
-        condition = self.password_edit.text()
-        authorization = self.authorization_edit.text()
-
-        try:
-            # Connect to the database
-            connection = psycopg2.connect(**self.connection_params)  # Assuming config() provides database credentials
-            with connection.cursor() as cursor:
-
-                # Insert new videoke data into the Videoke table
-                query = "INSERT INTO users (username, password, authorization_level) VALUES (%s, %s, %s)"
-                cursor.execute(query, (username, condition, authorization))
-                connection.commit()
-            QMessageBox.information(None, "Success", "Account added successfully!")
-        except (Exception, psycopg2.Error) as error:
-            QMessageBox.critical(None, "Error", f"Failed to add Account: {error}")
-        finally:
-            if connection:
-                connection.close()
+import psycopg2, AddDialog
     
 class Ui_MainWindow(object):
     def build_connection(self, username, password):
@@ -714,22 +324,22 @@ class Ui_MainWindow(object):
         tabName = self.customerTabs.tabText(self.customerTabs.currentIndex())
         
         if tabIndex == 0:
-            if tabName == "Customer":
-                AddCustomerDialog(self.connection_params).exec()
-            elif tabName == "Delivery":
-                AddDeliveryDialog(self.connection_params).exec()
-            elif tabName == "Videoke":
-                AddVideokeDialog(self.connection_params).exec()
-            elif tabName == "Accounts":
-                AddAccountDialog(self.connection_params).exec()
-
+            if tabName == "Customer" and not self.authorizationLevel == 'deliverydept' and not self.authorizationLevel == 'maintenancedept':
+                AddDialog.AddCustomerDialog().exec()
+            elif tabName == "Delivery" and not self.authorizationLevel == 'customerdept' and not self.authorizationLevel == 'maintenancedept':
+                AddDialog.AddDeliveryDialog().exec()
+            elif tabName == "Videoke" and not self.authorizationLevel == 'deliverydept' and not self.authorizationLevel == 'customerdept':
+                AddDialog.AddVideokeDialog().exec()
+            elif tabName == "Accounts" and self.authorizationLevel == "admin":
+                AddDialog.AddAccountDialog().exec()
+            else:
+                QMessageBox.critical(None, "Error", "Unauthorized access!")
+  
         elif tabIndex == 1:
-            if tabName == "Reservation":
-                AddReservationDialog(self.connection_params).exec()
-            elif tabName == "Maintenance":
-                AddMaintenanceDialog(self.connection_params).exec()
-                
-        self.loadData()
+            if tabName == "Reservation" and not self.authorizationLevel == 'deliverydept' and not self.authorizationLevel == 'maintenancedept':
+                AddDialog.AddReservationDialog().exec()
+            elif tabName == "Maintenance" and not self.authorizationLevel == 'deliverydept' and not self.authorizationLevel == 'customerdept':
+                AddDialog.AddMaintenanceDialog().exec()
     
     def verifyPassword(self, username, password):
         try:
@@ -737,7 +347,7 @@ class Ui_MainWindow(object):
             self.authorizationLevel = username
             
             if connection:
-                if self.authorizationLevel == "admin" or self.authorizationLevel == "manager":
+                if self.authorizationLevel == "admin" or self.authorizationLevel == "manager":  # Replace with your authorization level check
                     self.MainMenu()
                     self.highAccessUi()
                 else:
@@ -753,6 +363,7 @@ class Ui_MainWindow(object):
             if connection:
                 connection.close()
 
+    
     def hideUI(self):
         self.background.hide()
         self.logo.hide()
@@ -839,6 +450,7 @@ class Ui_MainWindow(object):
         self.loginButton.setStyleSheet("background-color: rgb(148, 227, 255);")
         self.loginButton.clicked.connect(lambda: self.verifyPassword(self.username.text(), self.password.text()))
         
+         # Create a QLabel for the background
         self.background = QLabel(self.centralwidget)
         self.background.setGeometry(0, 0, MainWindow.width(), MainWindow.height())
         pixmap = QPixmap("C:\\Users\\Krysss\\OneDrive\\Documents\\Programming\\SQL\\FINAL PIT\\Images\\BG.png")

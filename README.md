@@ -27,4 +27,4 @@ This project aims to develop a database system to manage the operations of Ed Mo
 - Bañas, James B.
 - Vallecera, Kirk Patrick T.
 ## Acknowledgment
-- This project is submitted in partial fulfillment of the requirements for **CS214 Fundamentals of Database Systems** at the **University of Science and Technology of Southern Philippines**, January 2024.
+This project is submitted in partial fulfillment of the requirements for **CS214 Fundamentals of Database Systems** at the **University of Science and Technology of Southern Philippines**, January 2024.
